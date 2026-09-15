@@ -1,6 +1,5 @@
 import { handle } from '@hono/node-server/vercel'
-
-import app from '../dist/server.js'
+import { createRequire } from 'node:module'
 
 /**
  * Vercel serverless entry point.
@@ -12,12 +11,27 @@ import app from '../dist/server.js'
  * to `/api` and there was no function there to receive it.
  *
  * Node runtime (the default for `api/`), deliberately not Edge: `node-forge`
- * decrypts media links and needs Node APIs that the Edge runtime does not have.
+ * decrypts media links and needs Node APIs the Edge runtime does not have.
  *
- * It imports the compiled `dist/` rather than `src/`: `npm run build` runs before
- * Vercel bundles this function, and the emitted files have already had their
- * `#modules/*` and `#common/*` specifiers rewritten to relative paths by
- * tsc-alias. The bundle therefore never has to understand this package's
- * `imports` map, which Vercel's bundler would not resolve.
+ * The `createRequire` shim is load-bearing. This package is `"type": "module"`,
+ * so Vercel bundles the function as ESM — and esbuild's ESM shim replaces
+ * CommonJS `require` with a function that throws "Dynamic require of ... is not
+ * supported". `node-forge` is CommonJS and does `require('crypto')`, so importing
+ * it crashed the function before it could serve anything, and *every* route
+ * answered FUNCTION_INVOCATION_FAILED. Handing the bundle a real `require`
+ * restores it.
+ *
+ * The app is then loaded with a dynamic import so it executes *after* that shim
+ * is in place; a static import would be hoisted above it.
+ *
+ * `dist/` rather than `src/`: `npm run build` runs before Vercel bundles this
+ * function, and tsc-alias has already rewritten the `#modules/*` and `#common/*`
+ * specifiers to relative paths, so the bundle never has to resolve this
+ * package's `imports` map.
  */
+const globalWithRequire = globalThis as typeof globalThis & { require?: NodeRequire }
+globalWithRequire.require ??= createRequire(import.meta.url)
+
+const { default: app } = await import('../dist/server.js')
+
 export default handle(app)
