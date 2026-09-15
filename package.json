@@ -31,6 +31,7 @@
     "start": "bun dist/server.js",
     "prebuild": "rm -rf dist",
     "build": "tsc && tsc-alias",
+    "vercel-build": "npm run build",
     "format": "prettier --write \"./**/*.{js,ts,json}\"",
     "lint": "eslint .",
     "lint:fix": "bun run lint --fix",
