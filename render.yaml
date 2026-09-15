@@ -1,0 +1,33 @@
+# Optional Render Blueprint for the JioSaavn API.
+#
+# You do not need this file: creating a Web Service and pointing it at
+# ./Dockerfile works just as well. It exists so the service is reproducible.
+#
+# ⚠️ Region matters more than anything else here, and this value is a guess.
+#
+# JioSaavn scopes its search index by region. Measured from Streamify's own
+# container the search endpoint returned only unlicensed instrumental covers and
+# omitted the licensed originals entirely — "heat waves" came back as 30/30
+# covers with Glass Animals absent — while the identical code from an Indian
+# connection returned the real track first.
+#
+# Singapore is simply the nearest region Render offers to India. It may or may
+# not be close enough, and nobody can tell without deploying. **If international
+# tracks are still missing, move this service to a provider with a real Indian
+# region** — Fly.io's `bom` (Mumbai) is the closest thing to a guarantee:
+#
+#   fly launch --region bom --dockerfile Dockerfile
+#
+# Streamify keeps working either way: if this service is unreachable it falls
+# back to the copy bundled in its own container.
+
+services:
+  - type: web
+    name: jiosaavn-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore
+    # Serves the docs page, so the check exercises the server without spending an
+    # upstream lookup.
+    healthCheckPath: /
